@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHealth } from "@/context/HealthContext";
@@ -7,6 +6,7 @@ import { Check, X, Leaf } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const ResultsDisplay = () => {
   const navigate = useNavigate();
@@ -40,7 +40,13 @@ const ResultsDisplay = () => {
         recommendation: result.recommendation
       });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        toast.error('Failed to save analysis');
+        throw error;
+      }
+      
+      toast.success('Analysis saved to your health history');
     } catch (error) {
       console.error('Error saving analysis:', error);
     }

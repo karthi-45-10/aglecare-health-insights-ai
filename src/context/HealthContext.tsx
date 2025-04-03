@@ -1,8 +1,8 @@
-
 import React, { createContext, useContext, useState, ReactNode } from "react";
-import { analyzeSymptoms, HealthAnalysisResult } from "@/services/api";
+import { analyzeSymptoms } from "@/services/api";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { HealthAnalysisResult } from "@/types/health";
 
 type HealthContextType = {
   analyzing: boolean;
@@ -11,16 +11,6 @@ type HealthContextType = {
   analyzeSymptomsVoice: (audioBlob: Blob) => Promise<void>;
   analyzeSymptomsImage: (imageFile: File) => Promise<void>;
   reset: () => void;
-};
-
-const initialResult: HealthAnalysisResult = {
-  analysis: "",
-  possibleConditions: [],
-  dos: [],
-  donts: [],
-  naturalRemedies: [],
-  recommendation: "",
-  imageAnalysis: null
 };
 
 const HealthContext = createContext<HealthContextType | undefined>(undefined);

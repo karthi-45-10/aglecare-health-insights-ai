@@ -3,6 +3,8 @@
 const HUGGINGFACE_API_KEY = "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";
 const MISTRAL_API_KEY = "DjyJA9MFtGcViA7SvdgIp3Fg4iH7tPrW";
 
+import { HealthAnalysisResult } from "@/types/health";
+
 // Health Analysis API with Hugging Face
 export const analyzeSymptoms = async (
   symptoms: string,
