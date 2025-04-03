@@ -1,7 +1,7 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Mic, Image } from "lucide-react";
+import { MessageSquare, Mic, Image, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHealth } from "@/context/HealthContext";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,10 +12,19 @@ const InputOptions = () => {
   const { analyzing, analyzeSymptomsText, analyzeSymptomsVoice, analyzeSymptomsImage } = useHealth();
   const [selectedOption, setSelectedOption] = useState<"text" | "voice" | "image" | null>(null);
   const [symptomText, setSymptomText] = useState("");
+  
+  // Voice recording states
   const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const timerRef = useRef<number | null>(null);
+  
+  // Image upload states
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-
+  
   const handleOptionSelect = (option: "text" | "voice" | "image") => {
     setSelectedOption(option);
   };
@@ -30,24 +39,75 @@ const InputOptions = () => {
     navigate("/results");
   };
 
-  const startRecording = () => {
-    setIsRecording(true);
-    toast.info("Recording started (simulation)");
-    
-    // Simulate recording for demo purposes
-    setTimeout(() => {
-      stopRecording();
-    }, 3000);
+  // Handle voice recording
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        setAudioBlob(audioBlob);
+        
+        // Stop all tracks of the stream
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      // Start timer
+      setRecordingTime(0);
+      timerRef.current = window.setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      
+      // Start recording
+      mediaRecorder.start();
+      setIsRecording(true);
+      toast.info("Recording started");
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      toast.error("Could not access microphone. Please check permissions.");
+    }
   };
 
-  const stopRecording = async () => {
-    setIsRecording(false);
-    toast.success("Recording completed");
-    
-    // In a real app, we would have actual audio data
-    // For demo purposes, we'll create an empty blob
-    const audioBlob = new Blob(["dummy audio data"], { type: "audio/wav" });
-    
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      // Clear timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      toast.success("Recording completed");
+    }
+  };
+
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, []);
+
+  const handleVoiceSubmit = async () => {
+    if (!audioBlob) {
+      toast.error("Please record your voice first");
+      return;
+    }
+
     await analyzeSymptomsVoice(audioBlob);
     navigate("/results");
   };
@@ -55,6 +115,18 @@ const InputOptions = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check file type
+      if (!file.type.match('image/jpeg|image/png|image/jpg')) {
+        toast.error('Please upload a JPEG or PNG image');
+        return;
+      }
+      
+      // Check file size (limit to 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB');
+        return;
+      }
+      
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
     }
@@ -68,6 +140,13 @@ const InputOptions = () => {
 
     await analyzeSymptomsImage(imageFile);
     navigate("/results");
+  };
+
+  // Format seconds to MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const secs = (seconds % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
   };
 
   return (
@@ -126,9 +205,14 @@ const InputOptions = () => {
           <Button
             onClick={handleTextSubmit}
             className="w-full agle-button"
-            disabled={analyzing}
+            disabled={analyzing || !symptomText.trim()}
           >
-            {analyzing ? "Analyzing..." : "Continue"}
+            {analyzing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : "Continue"}
           </Button>
         </div>
       )}
@@ -140,7 +224,15 @@ const InputOptions = () => {
               {isRecording ? (
                 <div className="animate-pulse">
                   <Mic size={48} className="mx-auto text-red-500" />
-                  <p className="mt-2 font-medium">Recording...</p>
+                  <p className="mt-2 font-medium">Recording... {formatTime(recordingTime)}</p>
+                </div>
+              ) : audioBlob ? (
+                <div>
+                  <div className="bg-green-100 p-3 rounded-full mx-auto w-16 h-16 flex items-center justify-center mb-2">
+                    <Mic size={32} className="text-green-600" />
+                  </div>
+                  <p className="font-medium">Recording completed</p>
+                  <audio className="mt-3 mx-auto" controls src={URL.createObjectURL(audioBlob)}></audio>
                 </div>
               ) : (
                 <>
@@ -150,13 +242,39 @@ const InputOptions = () => {
               )}
             </div>
             
-            <Button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={`px-6 ${isRecording ? "bg-red-500 hover:bg-red-600" : "agle-button"}`}
-              disabled={analyzing}
-            >
-              {isRecording ? "Stop Recording" : "Start Recording"}
-            </Button>
+            {!audioBlob ? (
+              <Button
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`px-6 ${isRecording ? "bg-red-500 hover:bg-red-600" : "agle-button"}`}
+                disabled={analyzing}
+              >
+                {isRecording ? "Stop Recording" : "Start Recording"}
+              </Button>
+            ) : (
+              <div className="flex space-x-3 justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setAudioBlob(null);
+                    audioChunksRef.current = [];
+                  }}
+                >
+                  Record Again
+                </Button>
+                <Button
+                  onClick={handleVoiceSubmit}
+                  className="agle-button"
+                  disabled={analyzing}
+                >
+                  {analyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : "Continue"}
+                </Button>
+              </div>
+            )}
           </div>
           <p className="text-sm text-gray-500">
             Speak clearly and describe your symptoms in detail
@@ -174,57 +292,59 @@ const InputOptions = () => {
                   alt="Symptom preview"
                   className="max-h-64 mx-auto rounded-lg"
                 />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => {
-                    setImageFile(null);
-                    setImagePreview(null);
-                  }}
-                >
-                  Remove image
-                </Button>
+                <div className="mt-4 flex justify-center space-x-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreview(null);
+                    }}
+                  >
+                    Remove image
+                  </Button>
+                  <Button
+                    onClick={handleImageSubmit}
+                    className="agle-button"
+                    disabled={analyzing}
+                  >
+                    {analyzing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : "Continue with this image"}
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="text-center mb-4">
                 <Image size={48} className="mx-auto text-gray-400" />
                 <p className="mt-2">Upload an image of your visible symptoms</p>
                 <p className="text-sm text-gray-500">Supported formats: JPG, PNG</p>
+                
+                <div className="mt-4">
+                  <input
+                    type="file"
+                    id="imageUpload"
+                    className="hidden"
+                    accept="image/jpeg, image/png"
+                    onChange={handleImageChange}
+                  />
+                  <label htmlFor="imageUpload">
+                    <Button
+                      variant="outline"
+                      className="cursor-pointer"
+                      disabled={analyzing}
+                      type="button"
+                      onClick={() => document.getElementById("imageUpload")?.click()}
+                    >
+                      Choose Image
+                    </Button>
+                  </label>
+                </div>
               </div>
             )}
-            
-            <div className="flex justify-center">
-              <input
-                type="file"
-                id="imageUpload"
-                className="hidden"
-                accept="image/jpeg, image/png"
-                onChange={handleImageChange}
-              />
-              <label htmlFor="imageUpload">
-                <Button
-                  variant="outline"
-                  className="cursor-pointer"
-                  disabled={analyzing}
-                  type="button"
-                  onClick={() => document.getElementById("imageUpload")?.click()}
-                >
-                  Choose Image
-                </Button>
-              </label>
-            </div>
           </div>
-          
-          {imageFile && (
-            <Button
-              onClick={handleImageSubmit}
-              className="w-full agle-button"
-              disabled={analyzing}
-            >
-              {analyzing ? "Analyzing..." : "Continue"}
-            </Button>
-          )}
         </div>
       )}
 

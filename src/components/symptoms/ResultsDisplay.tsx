@@ -3,10 +3,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHealth } from "@/context/HealthContext";
 import { Button } from "@/components/ui/button";
-import { Activity, Check, X, Leaf } from "lucide-react";
+import { Check, X, Leaf } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
 
 const ResultsDisplay = () => {
   const navigate = useNavigate();
@@ -26,12 +26,38 @@ const ResultsDisplay = () => {
   const createAccount = () => {
     navigate("/signup");
   };
+  
+  // Save analysis to Supabase if user is logged in
+  const saveAnalysis = async () => {
+    if (!user || !result) return;
+    
+    try {
+      const { error } = await supabase.from('health_analyses').insert({
+        user_id: user.id,
+        symptoms: 'User symptoms',
+        input_type: result.imageAnalysis ? 'image' : 'text',
+        analysis: result.analysis,
+        recommendation: result.recommendation
+      });
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving analysis:', error);
+    }
+  };
+  
+  // If the user is logged in, save the analysis
+  if (user && result) {
+    saveAnalysis();
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center mb-6">
         <div className="bg-blue-100 p-2 rounded-full mr-3">
-          <Activity className="text-agleblue" />
+          <svg className="text-agleblue h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
         <h1 className="text-2xl font-bold">Health Analysis</h1>
       </div>
@@ -43,7 +69,7 @@ const ResultsDisplay = () => {
             <p className="font-medium mb-2">Based on the image you provided:</p>
             <div className="flex items-center">
               <img 
-                src={result.imageAnalysis} 
+                src={result.imageAnalysis}
                 alt="Analyzed image" 
                 className="w-20 h-20 object-cover rounded-md border"
               />
@@ -75,7 +101,9 @@ const ResultsDisplay = () => {
         <div className="border rounded-lg p-6">
           <h2 className="text-lg font-semibold flex items-center mb-4">
             <div className="bg-blue-100 p-1.5 rounded-full mr-2">
-              <Activity size={16} className="text-agleblue" />
+              <svg className="text-agleblue h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </div>
             Possible Conditions
           </h2>
@@ -162,14 +190,14 @@ const ResultsDisplay = () => {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Button onClick={startNewAnalysis} className="agle-button-outline">
+        <Button onClick={startNewAnalysis} className="border border-agleblue text-agleblue hover:bg-blue-50 font-medium px-6 py-2.5 rounded-full transition-all">
           Start Over
         </Button>
         
         {showCreateAccountPrompt && (
           <Button 
             onClick={createAccount} 
-            className="agle-button"
+            className="bg-agleblue hover:bg-blue-600 text-white font-medium px-6 py-2.5 rounded-full transition-all"
           >
             Create Account to Save Results
           </Button>

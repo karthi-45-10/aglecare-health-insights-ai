@@ -11,7 +11,7 @@ export const analyzeSymptoms = async (
   try {
     console.log(`Analyzing ${inputType} input:`, inputType === "text" ? symptoms : "[media data]");
     
-    // For demo purposes, we're using the text-generation model to simulate analysis
+    // Call Hugging Face API for text analysis
     const response = await fetch("https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2", {
       method: "POST",
       headers: {
@@ -48,15 +48,52 @@ Provide thoughtful, helpful information while emphasizing the importance of prof
     }
 
     // Parse the generated text to extract the structured analysis
-    return parseHealthAnalysis(result[0].generated_text);
+    return parseHealthAnalysis(result[0].generated_text, inputType === "image" ? symptoms : null);
   } catch (error) {
     console.error("Error analyzing symptoms:", error);
-    throw error;
+    
+    // Fall back to Mistral API if Hugging Face fails
+    try {
+      const mistralResponse = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${MISTRAL_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "mistral-small",
+          messages: [
+            {
+              role: "system",
+              content: "You are a medical AI assistant providing preliminary health insights. Structure your responses with: 1) Brief analysis, 2) Possible conditions with percentages, 3) Do's list, 4) Don'ts list, 5) Natural remedies, 6) Professional recommendations, 7) Medical disclaimer."
+            },
+            {
+              role: "user",
+              content: `Please analyze these symptoms: ${symptoms}`
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000
+        }),
+      });
+
+      const mistralResult = await mistralResponse.json();
+      if (mistralResult.error) {
+        throw new Error(mistralResult.error);
+      }
+
+      const assistantMessage = mistralResult.choices?.[0]?.message?.content;
+      return parseHealthAnalysis(assistantMessage, inputType === "image" ? symptoms : null);
+
+    } catch (mistralError) {
+      console.error("Mistral API error:", mistralError);
+      throw mistralError;
+    }
   }
 };
 
 // Function to parse the AI-generated health analysis text into structured data
-function parseHealthAnalysis(text: string): HealthAnalysisResult {
+function parseHealthAnalysis(text: string, imageDescription: string | null): HealthAnalysisResult {
   // Extract the relevant parts after the instruction prompt
   const responseContent = text.split("[/INST]")[1] || text;
   
@@ -145,7 +182,7 @@ function parseHealthAnalysis(text: string): HealthAnalysisResult {
       donts: donts.length > 0 ? donts : fallbackResponse.donts,
       naturalRemedies: naturalRemedies.length > 0 ? naturalRemedies : fallbackResponse.naturalRemedies,
       recommendation,
-      imageAnalysis: null
+      imageAnalysis: imageDescription
     };
   } catch (error) {
     console.error("Error parsing health analysis:", error);

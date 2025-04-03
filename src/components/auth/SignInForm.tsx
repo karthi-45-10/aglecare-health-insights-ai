@@ -1,28 +1,44 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const SignInForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   
-  const { signIn } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    
     setLoading(true);
     
     try {
-      const success = await signIn(email, password);
-      if (success) {
-        navigate("/dashboard");
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        throw error;
       }
+      
+      toast.success("Logged in successfully!");
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error("Error signing in:", error);
+      toast.error(error.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }

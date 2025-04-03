@@ -21,7 +21,7 @@ const Hero = () => {
 
       <div className="rounded-xl overflow-hidden">
         <img
-          src="/lovable-uploads/3f1e994f-b774-4584-931c-c7adf487da2d.png"
+          src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2070&q=80"
           alt="Doctor with stethoscope analyzing health data"
           className="w-full h-auto object-cover rounded-xl"
         />

@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { analyzeSymptoms, HealthAnalysisResult } from "@/services/api";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type HealthContextType = {
   analyzing: boolean;
@@ -47,15 +48,23 @@ export const HealthProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setAnalyzing(true);
       toast.info("Processing voice recording...");
       
-      // In a real app, we'd send the audio for transcription first
-      // For demo purposes, we'll simulate a transcription delay and then use a default message
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Convert audio to base64 for processing
+      const reader = new FileReader();
       
-      const transcribedText = "I have a headache, sore throat, and feeling tired for the past two days.";
+      const audioText = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          // In a real app, we'd send the audio for transcription
+          // For now, we'll use a simulated transcription
+          resolve("I have a headache, sore throat, and feeling tired for the past two days.");
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+      
       toast.success("Voice transcribed successfully");
       
       // Now analyze the transcribed text
-      const analysisResult = await analyzeSymptoms(transcribedText, "voice");
+      const analysisResult = await analyzeSymptoms(audioText, "voice");
       setResult(analysisResult);
     } catch (error) {
       console.error("Error processing voice:", error);
@@ -70,14 +79,12 @@ export const HealthProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setAnalyzing(true);
       toast.info("Analyzing your image...");
       
-      // In a real app, we'd send the image for analysis
-      // For demo purposes, we'll simulate an image analysis delay and then use a default response
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create a description of what's in the image
+      // In a real app, this would be done by an image analysis API
+      const imageDescription = "The image shows skin with visible redness and small bumps, possibly indicating a rash or allergic reaction.";
       
-      const analysisResult = await analyzeSymptoms(
-        "The image shows a rash on skin with redness and small bumps", 
-        "image"
-      );
+      // Analyze the image description
+      const analysisResult = await analyzeSymptoms(imageDescription, "image");
       
       // Add the image URL to the result
       setResult({

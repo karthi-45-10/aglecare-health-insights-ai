@@ -1,144 +1,133 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
-
-type User = {
-  id: string;
-  email: string;
-  name: string;
-};
 
 type AuthContextType = {
   user: User | null;
-  loading: boolean;
+  session: Session | null;
+  signUp: (email: string, password: string, name: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<boolean>;
-  signUp: (email: string, name: string, password: string) => Promise<boolean>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
+  loading: boolean;
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  session: null,
+  signUp: async () => false,
+  signIn: async () => false,
+  signOut: async () => {},
+  loading: true,
+});
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const storedUser = localStorage.getItem("aglecare_user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        localStorage.removeItem("aglecare_user");
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        setUser(currentSession?.user ?? null);
+        setLoading(false);
       }
-    }
-    setLoading(false);
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
+
+  const signUp = async (email: string, password: string, name: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
+
+      if (data) {
+        toast.success("Account created successfully!");
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Error in signUp:", error);
+      toast.error("Failed to create account. Please try again.");
+      return false;
+    }
+  };
 
   const signIn = async (email: string, password: string): Promise<boolean> => {
     try {
-      // In a real app, this would be an API call to authenticate
-      // For demo purposes, we'll simulate a successful login if the password is at least 6 characters
-      if (password.length < 6) {
-        toast.error("Invalid credentials");
-        return false;
-      }
-
-      // Get or create user
-      const users = JSON.parse(localStorage.getItem("aglecare_users") || "{}");
-      const userRecord = users[email];
-
-      if (!userRecord) {
-        toast.error("User not found. Please sign up first.");
-        return false;
-      }
-
-      if (userRecord.password !== password) {
-        toast.error("Invalid password");
-        return false;
-      }
-
-      const authenticatedUser = {
-        id: userRecord.id,
-        email: email,
-        name: userRecord.name,
-      };
-
-      setUser(authenticatedUser);
-      localStorage.setItem("aglecare_user", JSON.stringify(authenticatedUser));
-      toast.success("Sign in successful!");
-      return true;
-    } catch (error) {
-      console.error("Authentication error:", error);
-      toast.error("Authentication failed. Please try again.");
-      return false;
-    }
-  };
-
-  const signUp = async (email: string, name: string, password: string): Promise<boolean> => {
-    try {
-      if (password.length < 6) {
-        toast.error("Password must be at least 6 characters");
-        return false;
-      }
-
-      // Get existing users or initialize empty object
-      const users = JSON.parse(localStorage.getItem("aglecare_users") || "{}");
-      
-      // Check if user already exists
-      if (users[email]) {
-        toast.error("User already exists");
-        return false;
-      }
-
-      // Create new user
-      const newUser = {
-        id: `user_${Date.now()}`,
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        name,
-        password, // In a real app, NEVER store passwords in plaintext
-      };
+        password,
+      });
 
-      // Add to users object
-      users[email] = newUser;
-      localStorage.setItem("aglecare_users", JSON.stringify(users));
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
 
-      // Log the user in
-      const authenticatedUser = {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-      };
+      if (data) {
+        toast.success("Signed in successfully!");
+        return true;
+      }
 
-      setUser(authenticatedUser);
-      localStorage.setItem("aglecare_user", JSON.stringify(authenticatedUser));
-      
-      toast.success("Account created successfully!");
-      return true;
+      return false;
     } catch (error) {
-      console.error("Signup error:", error);
-      toast.error("Signup failed. Please try again.");
+      console.error("Error in signIn:", error);
+      toast.error("Failed to sign in. Please check your credentials.");
       return false;
     }
   };
 
-  const signOut = () => {
-    setUser(null);
-    localStorage.removeItem("aglecare_user");
-    toast.info("You have been signed out");
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.success("Signed out successfully");
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast.error("Failed to sign out");
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        signUp,
+        signIn,
+        signOut,
+        loading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
