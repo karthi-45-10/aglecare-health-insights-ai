@@ -7,11 +7,14 @@ import { Clipboard, Clock, User } from "lucide-react";
 const DashboardView = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // Get user name from metadata which is where Supabase stores custom user data
+  const userName = user?.user_metadata?.name || "User";
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">Welcome back, {user?.name || "User"}!</h1>
+        <h1 className="text-2xl font-bold mb-2">Welcome back, {userName}!</h1>
         <p className="text-gray-600">
           Access your health insights and start a new analysis.
         </p>
@@ -57,7 +60,7 @@ const DashboardView = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <div className="bg-gray-100 p-2 rounded">{user?.name || "Not specified"}</div>
+            <div className="bg-gray-100 p-2 rounded">{userName}</div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>

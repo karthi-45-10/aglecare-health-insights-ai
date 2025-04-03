@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useHealth } from "@/context/HealthContext";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ const ResultsDisplay = () => {
   const { user } = useAuth();
   const { result } = useHealth();
   const [showCreateAccountPrompt, setShowCreateAccountPrompt] = useState(!user);
+  const [savedToDatabase, setSavedToDatabase] = useState(false);
 
   if (!result) {
     navigate("/symptoms");
@@ -29,16 +31,21 @@ const ResultsDisplay = () => {
   
   // Save analysis to Supabase if user is logged in
   const saveAnalysis = async () => {
-    if (!user || !result) return;
+    if (!user || !result || savedToDatabase) return;
     
     try {
-      const { error } = await supabase.from('health_analyses').insert({
+      // Define the data to insert
+      const analysisData = {
         user_id: user.id,
         symptoms: 'User symptoms',
         input_type: result.imageAnalysis ? 'image' : 'text',
         analysis: result.analysis,
         recommendation: result.recommendation
-      });
+      };
+      
+      const { error } = await supabase
+        .from('health_analyses')
+        .insert(analysisData);
       
       if (error) {
         console.error('Database error:', error);
@@ -46,16 +53,19 @@ const ResultsDisplay = () => {
         throw error;
       }
       
+      setSavedToDatabase(true);
       toast.success('Analysis saved to your health history');
     } catch (error) {
       console.error('Error saving analysis:', error);
     }
   };
   
-  // If the user is logged in, save the analysis
-  if (user && result) {
-    saveAnalysis();
-  }
+  // Use useEffect to call saveAnalysis when component mounts
+  useEffect(() => {
+    if (user && result && !savedToDatabase) {
+      saveAnalysis();
+    }
+  }, [user, result]);
 
   return (
     <div className="max-w-4xl mx-auto">

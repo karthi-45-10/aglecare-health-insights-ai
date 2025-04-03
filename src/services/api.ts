@@ -222,17 +222,3 @@ export const translateText = async (text: string, fromLang = "en", toLang = "en"
     return text; // Return original text if translation fails
   }
 };
-
-// Types
-export interface HealthAnalysisResult {
-  analysis: string;
-  possibleConditions: Array<{
-    name: string;
-    probability: number;
-  }>;
-  dos: string[];
-  donts: string[];
-  naturalRemedies: string[];
-  recommendation: string;
-  imageAnalysis: string | null;
-}
