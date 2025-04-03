@@ -12,7 +12,7 @@ import { toast } from "sonner";
 const ResultsDisplay = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { result } = useHealth();
+  const { result, language } = useHealth();
   const [showCreateAccountPrompt, setShowCreateAccountPrompt] = useState(!user);
   const [savedToDatabase, setSavedToDatabase] = useState(false);
 
@@ -49,12 +49,16 @@ const ResultsDisplay = () => {
       
       if (error) {
         console.error('Database error:', error);
-        toast.error('Failed to save analysis');
+        toast.error(language === 'english' ? 'Failed to save analysis' : 'பகுப்பாய்வைச் சேமிக்க முடியவில்லை');
         throw error;
       }
       
       setSavedToDatabase(true);
-      toast.success('Analysis saved to your health history');
+      toast.success(
+        language === 'english' 
+          ? 'Analysis saved to your health history'
+          : 'பகுப்பாய்வு உங்கள் ஆரோக்கிய வரலாற்றில் சேமிக்கப்பட்டது'
+      );
     } catch (error) {
       console.error('Error saving analysis:', error);
     }
@@ -67,6 +71,30 @@ const ResultsDisplay = () => {
     }
   }, [user, result]);
 
+  // Translations
+  const translations = {
+    healthAnalysis: language === 'english' ? 'Health Analysis' : 'ஆரோக்கிய பகுப்பாய்வு',
+    basedOnImage: language === 'english' ? 'Based on the image you provided:' : 'நீங்கள் வழங்கிய படத்தின் அடிப்படையில்:',
+    imageAnalysis: language === 'english' ? 'Image analysis included in results' : 'பகுப்பாய்வில் படம் சேர்க்கப்பட்டுள்ளது',
+    doctorConsult: language === 'english' ? 'Doctor Consultation Recommended' : 'மருத்துவர் ஆலோசனை பரிந்துரைக்கப்படுகிறது',
+    specialist: language === 'english' ? 'Suggested specialist:' : 'பரிந்துரைக்கப்பட்ட நிபுணர்:',
+    dermatologist: language === 'english' ? 'Dermatologist' : 'தோல் மருத்துவர்',
+    possibleConditions: language === 'english' ? 'Possible Conditions' : 'சாத்தியமான நிலைமைகள்',
+    dos: language === 'english' ? "Do's" : 'செய்யவேண்டியவை',
+    donts: language === 'english' ? "Don'ts" : 'செய்யக்கூடாதவை',
+    naturalRemedies: language === 'english' ? 'Natural Remedies' : 'இயற்கை தீர்வுகள்',
+    remediesNote: language === 'english' 
+      ? 'Note: These natural remedies are suggestions and not a replacement for proper medical treatment.' 
+      : 'குறிப்பு: இந்த இயற்கை தீர்வுகள் ஆலோசனைகள் மட்டுமே, சரியான மருத்துவ சிகிச்சைக்கு மாற்று அல்ல.',
+    recommendation: language === 'english' ? 'Recommendation' : 'பரிந்துரை',
+    disclaimer: language === 'english' 
+      ? 'This analysis is provided for informational purposes only, and is not a substitute for professional medical advice, diagnosis, or treatment.'
+      : 'இந்த பகுப்பாய்வு தகவல் நோக்கங்களுக்காக மட்டுமே வழங்கப்படுகிறது, மேலும் தொழில்முறை மருத்துவ ஆலோசனை, நோயறிதல் அல்லது சிகிச்சைக்கு மாற்றாக அல்ல.',
+    important: language === 'english' ? 'Important:' : 'முக்கியம்:',
+    startOver: language === 'english' ? 'Start Over' : 'மீண்டும் தொடங்கவும்',
+    createAccount: language === 'english' ? 'Create Account to Save Results' : 'முடிவுகளைச் சேமிக்க கணக்கை உருவாக்கவும்'
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center mb-6">
@@ -75,21 +103,21 @@ const ResultsDisplay = () => {
             <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
-        <h1 className="text-2xl font-bold">Health Analysis</h1>
+        <h1 className="text-2xl font-bold">{translations.healthAnalysis}</h1>
       </div>
 
       <div className="bg-blue-50 p-6 rounded-lg mb-6">
         <p>{result.analysis}</p>
         {result.imageAnalysis && (
           <div className="mt-4">
-            <p className="font-medium mb-2">Based on the image you provided:</p>
+            <p className="font-medium mb-2">{translations.basedOnImage}</p>
             <div className="flex items-center">
               <img 
                 src={result.imageAnalysis}
                 alt="Analyzed image" 
                 className="w-20 h-20 object-cover rounded-md border"
               />
-              <p className="ml-4 text-sm italic">Image analysis included in results</p>
+              <p className="ml-4 text-sm italic">{translations.imageAnalysis}</p>
             </div>
           </div>
         )}
@@ -104,9 +132,9 @@ const ResultsDisplay = () => {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium">Doctor Consultation Recommended</p>
+              <p className="text-sm font-medium">{translations.doctorConsult}</p>
               <p className="text-xs text-yellow-700 mt-1">
-                Suggested specialist: Dermatologist
+                {translations.specialist} {translations.dermatologist}
               </p>
             </div>
           </div>
@@ -121,7 +149,7 @@ const ResultsDisplay = () => {
                 <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
-            Possible Conditions
+            {translations.possibleConditions}
           </h2>
           <div className="space-y-4">
             {result.possibleConditions.map((condition, index) => (
@@ -141,7 +169,7 @@ const ResultsDisplay = () => {
             <div className="bg-green-100 p-1.5 rounded-full mr-2">
               <Check size={16} className="text-green-500" />
             </div>
-            Do's
+            {translations.dos}
           </h2>
           <ul className="space-y-2">
             {result.dos.map((item, index) => (
@@ -160,7 +188,7 @@ const ResultsDisplay = () => {
             <div className="bg-red-100 p-1.5 rounded-full mr-2">
               <X size={16} className="text-red-500" />
             </div>
-            Don'ts
+            {translations.donts}
           </h2>
           <ul className="space-y-2">
             {result.donts.map((item, index) => (
@@ -177,7 +205,7 @@ const ResultsDisplay = () => {
             <div className="bg-green-100 p-1.5 rounded-full mr-2">
               <Leaf size={16} className="text-green-500" />
             </div>
-            Natural Remedies
+            {translations.naturalRemedies}
           </h2>
           <div className="space-y-2">
             {result.naturalRemedies.map((remedy, index) => (
@@ -187,27 +215,26 @@ const ResultsDisplay = () => {
               </div>
             ))}
             <p className="text-xs text-gray-500 mt-4">
-              Note: These natural remedies are suggestions and not a replacement for proper medical treatment.
+              {translations.remediesNote}
             </p>
           </div>
         </div>
       </div>
 
       <div className="mb-6">
-        <h2 className="text-lg font-semibold mb-2">Recommendation</h2>
+        <h2 className="text-lg font-semibold mb-2">{translations.recommendation}</h2>
         <p>{result.recommendation}</p>
       </div>
 
       <div className="bg-blue-50 p-4 rounded-lg mb-6">
         <p className="text-sm">
-          <strong>Important:</strong> This analysis is provided for informational purposes only, and is not a substitute for 
-          professional medical advice, diagnosis, or treatment.
+          <strong>{translations.important}</strong> {translations.disclaimer}
         </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <Button onClick={startNewAnalysis} className="border border-agleblue text-agleblue hover:bg-blue-50 font-medium px-6 py-2.5 rounded-full transition-all">
-          Start Over
+          {translations.startOver}
         </Button>
         
         {showCreateAccountPrompt && (
@@ -215,7 +242,7 @@ const ResultsDisplay = () => {
             onClick={createAccount} 
             className="bg-agleblue hover:bg-blue-600 text-white font-medium px-6 py-2.5 rounded-full transition-all"
           >
-            Create Account to Save Results
+            {translations.createAccount}
           </Button>
         )}
       </div>

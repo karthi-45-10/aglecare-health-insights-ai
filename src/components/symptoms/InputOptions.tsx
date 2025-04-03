@@ -1,360 +1,229 @@
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Mic, Image, Loader2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useHealth } from "@/context/HealthContext";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { SupportedLanguage } from "@/types/health";
 
 const InputOptions = () => {
   const navigate = useNavigate();
-  const { analyzing, analyzeSymptomsText, analyzeSymptomsVoice, analyzeSymptomsImage } = useHealth();
-  const [selectedOption, setSelectedOption] = useState<"text" | "voice" | "image" | null>(null);
+  const { analyzeSymptomsText, analyzeSymptomsVoice, analyzeSymptomsImage, analyzing, language, setLanguage } = useHealth();
+  const [activeTab, setActiveTab] = useState<"text" | "voice" | "image">("text");
   const [symptomText, setSymptomText] = useState("");
-  
-  // Voice recording states
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<BlobPart[]>([]);
-  const timerRef = useRef<number | null>(null);
-  
-  // Image upload states
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  
-  const handleOptionSelect = (option: "text" | "voice" | "image") => {
-    setSelectedOption(option);
-  };
 
+  // Submit handler for text input
   const handleTextSubmit = async () => {
-    if (!symptomText.trim()) {
-      toast.error("Please describe your symptoms");
-      return;
-    }
-
+    if (!symptomText.trim()) return;
     await analyzeSymptomsText(symptomText);
     navigate("/results");
   };
 
-  // Handle voice recording
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        setAudioBlob(audioBlob);
-        
-        // Stop all tracks of the stream
-        stream.getTracks().forEach(track => track.stop());
-      };
-      
-      // Start timer
-      setRecordingTime(0);
-      timerRef.current = window.setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
-      
-      // Start recording
-      mediaRecorder.start();
-      setIsRecording(true);
-      toast.info("Recording started");
-    } catch (error) {
-      console.error("Error accessing microphone:", error);
-      toast.error("Could not access microphone. Please check permissions.");
+  // Record voice input (simulated)
+  const handleVoiceRecord = () => {
+    setIsRecording(!isRecording);
+    
+    if (!isRecording) {
+      // Start recording simulation
+      setTimeout(() => {
+        setIsRecording(false);
+        // Simulate having a recording and analyze it
+        const blob = new Blob(["dummy audio data"], { type: "audio/wav" });
+        analyzeSymptomsVoice(blob);
+        navigate("/results");
+      }, 3000);
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      
-      // Clear timer
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      
-      toast.success("Recording completed");
-    }
-  };
-
-  // Clean up on component unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, []);
-
-  const handleVoiceSubmit = async () => {
-    if (!audioBlob) {
-      toast.error("Please record your voice first");
-      return;
-    }
-
-    await analyzeSymptomsVoice(audioBlob);
-    navigate("/results");
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Check file type
-      if (!file.type.match('image/jpeg|image/png|image/jpg')) {
-        toast.error('Please upload a JPEG or PNG image');
-        return;
-      }
-      
-      // Check file size (limit to 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size must be less than 5MB');
-        return;
-      }
-      
+  // Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
       setImageFile(file);
       setImagePreview(URL.createObjectURL(file));
     }
   };
 
+  // Submit handler for image input
   const handleImageSubmit = async () => {
-    if (!imageFile) {
-      toast.error("Please upload an image");
-      return;
-    }
-
+    if (!imageFile) return;
     await analyzeSymptomsImage(imageFile);
     navigate("/results");
   };
 
-  // Format seconds to MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const secs = (seconds % 60).toString().padStart(2, '0');
-    return `${mins}:${secs}`;
+  // Language change handler
+  const handleLanguageChange = (value: string) => {
+    setLanguage(value as SupportedLanguage);
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold text-center mb-8">How would you like to describe your symptoms?</h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <button
-          onClick={() => handleOptionSelect("text")}
-          className={`p-6 rounded-lg border flex flex-col items-center justify-center transition-all ${
-            selectedOption === "text" ? "border-agleblue bg-blue-50" : "hover:bg-gray-50"
-          }`}
-        >
-          <div className="bg-blue-100 p-4 rounded-full mb-4">
-            <MessageSquare className="text-agleblue" />
-          </div>
-          <h3 className="font-medium mb-1">Text Description</h3>
-          <p className="text-sm text-gray-500">Type your symptoms</p>
-        </button>
-
-        <button
-          onClick={() => handleOptionSelect("voice")}
-          className={`p-6 rounded-lg border flex flex-col items-center justify-center transition-all ${
-            selectedOption === "voice" ? "border-agleblue bg-blue-50" : "hover:bg-gray-50"
-          }`}
-        >
-          <div className="bg-blue-100 p-4 rounded-full mb-4">
-            <Mic className="text-agleblue" />
-          </div>
-          <h3 className="font-medium mb-1">Voice Recording</h3>
-          <p className="text-sm text-gray-500">Describe verbally</p>
-        </button>
-
-        <button
-          onClick={() => handleOptionSelect("image")}
-          className={`p-6 rounded-lg border flex flex-col items-center justify-center transition-all ${
-            selectedOption === "image" ? "border-agleblue bg-blue-50" : "hover:bg-gray-50"
-          }`}
-        >
-          <div className="bg-blue-100 p-4 rounded-full mb-4">
-            <Image className="text-agleblue" />
-          </div>
-          <h3 className="font-medium mb-1">Image Upload</h3>
-          <p className="text-sm text-gray-500">Share a photo</p>
-        </button>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="flex space-x-2">
+          <Button
+            onClick={() => setActiveTab("text")}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === "text"
+                ? "bg-agleblue text-white"
+                : "bg-gray-100 text-gray-700"
+            }`}
+          >
+            {language === "english" ? "Text" : "உரை"}
+          </Button>
+          <Button
+            onClick={() => setActiveTab("voice")}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === "voice"
+                ? "bg-agleblue text-white"
+                : "bg-gray-100 text-gray-700"
+            }`}
+          >
+            {language === "english" ? "Voice" : "குரல்"}
+          </Button>
+          <Button
+            onClick={() => setActiveTab("image")}
+            className={`px-4 py-2 rounded-lg ${
+              activeTab === "image"
+                ? "bg-agleblue text-white"
+                : "bg-gray-100 text-gray-700"
+            }`}
+          >
+            {language === "english" ? "Image" : "படம்"}
+          </Button>
+        </div>
+        
+        <div className="w-36">
+          <Select value={language} onValueChange={handleLanguageChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Language" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="english">English</SelectItem>
+              <SelectItem value="tamil">தமிழ்</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {selectedOption === "text" && (
-        <div className="mb-8">
+      {activeTab === "text" && (
+        <div className="space-y-4">
           <Textarea
-            placeholder="Describe your symptoms in detail. For example: I've been experiencing a headache and fever for the past two days..."
-            className="h-32 mb-4"
+            placeholder={language === "english" 
+              ? "Describe your symptoms in detail..." 
+              : "உங்கள் அறிகுறிகளை விரிவாக விவரிக்கவும்..."}
             value={symptomText}
             onChange={(e) => setSymptomText(e.target.value)}
+            rows={6}
+            className="w-full p-4 border rounded-lg"
           />
           <Button
             onClick={handleTextSubmit}
-            className="w-full agle-button"
-            disabled={analyzing || !symptomText.trim()}
+            disabled={!symptomText.trim() || analyzing}
+            className="bg-agleblue hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-full w-full"
           >
-            {analyzing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing...
-              </>
-            ) : "Continue"}
+            {analyzing 
+              ? (language === "english" ? "Analyzing..." : "ஆராய்கிறது...") 
+              : (language === "english" ? "Analyze Symptoms" : "அறிகுறிகளை ஆராய்க")}
           </Button>
         </div>
       )}
 
-      {selectedOption === "voice" && (
-        <div className="mb-8 text-center">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4">
-            <div className="mb-4">
+      {activeTab === "voice" && (
+        <div className="flex flex-col items-center space-y-4">
+          <div className="bg-gray-100 w-32 h-32 rounded-full flex items-center justify-center">
+            <Button
+              onClick={handleVoiceRecord}
+              className={`w-24 h-24 rounded-full ${
+                isRecording ? "bg-red-500" : "bg-agleblue"
+              } hover:bg-blue-600 text-white flex items-center justify-center`}
+            >
               {isRecording ? (
-                <div className="animate-pulse">
-                  <Mic size={48} className="mx-auto text-red-500" />
-                  <p className="mt-2 font-medium">Recording... {formatTime(recordingTime)}</p>
-                </div>
-              ) : audioBlob ? (
-                <div>
-                  <div className="bg-green-100 p-3 rounded-full mx-auto w-16 h-16 flex items-center justify-center mb-2">
-                    <Mic size={32} className="text-green-600" />
-                  </div>
-                  <p className="font-medium">Recording completed</p>
-                  <audio className="mt-3 mx-auto" controls src={URL.createObjectURL(audioBlob)}></audio>
-                </div>
+                <span className="animate-ping h-4 w-4 rounded-full bg-white opacity-75"></span>
               ) : (
-                <>
-                  <Mic size={48} className="mx-auto text-gray-400" />
-                  <p className="mt-2">Click the button below to start recording</p>
-                </>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
               )}
-            </div>
-            
-            {!audioBlob ? (
-              <Button
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`px-6 ${isRecording ? "bg-red-500 hover:bg-red-600" : "agle-button"}`}
-                disabled={analyzing}
-              >
-                {isRecording ? "Stop Recording" : "Start Recording"}
-              </Button>
-            ) : (
-              <div className="flex space-x-3 justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setAudioBlob(null);
-                    audioChunksRef.current = [];
-                  }}
-                >
-                  Record Again
-                </Button>
-                <Button
-                  onClick={handleVoiceSubmit}
-                  className="agle-button"
-                  disabled={analyzing}
-                >
-                  {analyzing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : "Continue"}
-                </Button>
-              </div>
-            )}
+            </Button>
           </div>
-          <p className="text-sm text-gray-500">
-            Speak clearly and describe your symptoms in detail
+          <p className="text-center text-gray-600">
+            {isRecording 
+              ? (language === "english" ? "Recording... Click to stop" : "பதிவு செய்கிறது... நிறுத்த கிளிக் செய்யவும்") 
+              : (language === "english" ? "Click to start recording" : "பதிவுசெய்ய கிளிக் செய்யவும்")}
           </p>
         </div>
       )}
 
-      {selectedOption === "image" && (
-        <div className="mb-8">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4">
+      {activeTab === "image" && (
+        <div className="space-y-4">
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center">
             {imagePreview ? (
-              <div className="mb-4">
-                <img
-                  src={imagePreview}
-                  alt="Symptom preview"
-                  className="max-h-64 mx-auto rounded-lg"
-                />
-                <div className="mt-4 flex justify-center space-x-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setImageFile(null);
-                      setImagePreview(null);
-                    }}
-                  >
-                    Remove image
-                  </Button>
-                  <Button
-                    onClick={handleImageSubmit}
-                    className="agle-button"
-                    disabled={analyzing}
-                  >
-                    {analyzing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : "Continue with this image"}
-                  </Button>
-                </div>
-              </div>
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="max-h-64 mb-4 rounded"
+              />
             ) : (
-              <div className="text-center mb-4">
-                <Image size={48} className="mx-auto text-gray-400" />
-                <p className="mt-2">Upload an image of your visible symptoms</p>
-                <p className="text-sm text-gray-500">Supported formats: JPG, PNG</p>
-                
-                <div className="mt-4">
-                  <input
-                    type="file"
-                    id="imageUpload"
-                    className="hidden"
-                    accept="image/jpeg, image/png"
-                    onChange={handleImageChange}
+              <div className="text-center p-8">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-12 w-12 text-gray-400 mx-auto mb-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                   />
-                  <label htmlFor="imageUpload">
-                    <Button
-                      variant="outline"
-                      className="cursor-pointer"
-                      disabled={analyzing}
-                      type="button"
-                      onClick={() => document.getElementById("imageUpload")?.click()}
-                    >
-                      Choose Image
-                    </Button>
-                  </label>
-                </div>
+                </svg>
+                <p className="text-gray-500">
+                  {language === "english" 
+                    ? "Upload an image of the affected area" 
+                    : "பாதிக்கப்பட்ட பகுதியின் படத்தைப் பதிவேற்றவும்"}
+                </p>
               </div>
             )}
+            <input
+              type="file"
+              id="image-upload"
+              className="hidden"
+              accept="image/*"
+              onChange={handleImageUpload}
+            />
+            <label
+              htmlFor="image-upload"
+              className="mt-4 cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium px-4 py-2 rounded-lg"
+            >
+              {language === "english" ? "Choose Image" : "படத்தைத் தேர்வுசெய்க"}
+            </label>
           </div>
-        </div>
-      )}
-
-      {!selectedOption && (
-        <div className="text-center">
           <Button
-            disabled
-            className="opacity-50 agle-button"
+            onClick={handleImageSubmit}
+            disabled={!imageFile || analyzing}
+            className="bg-agleblue hover:bg-blue-600 text-white font-medium px-6 py-3 rounded-full w-full"
           >
-            Continue
+            {analyzing 
+              ? (language === "english" ? "Analyzing..." : "ஆராய்கிறது...") 
+              : (language === "english" ? "Analyze Image" : "படத்தை ஆராய்க")}
           </Button>
         </div>
       )}

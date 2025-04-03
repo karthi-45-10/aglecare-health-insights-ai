@@ -11,6 +11,7 @@ export interface HealthAnalysisResult {
   naturalRemedies: string[];
   recommendation: string;
   imageAnalysis: string | null;
+  language?: "english" | "tamil";
 }
 
 // Database types for health analyses
@@ -23,3 +24,5 @@ export interface HealthAnalysisRecord {
   recommendation: string | null;
   created_at: string;
 }
+
+export type SupportedLanguage = "english" | "tamil";
