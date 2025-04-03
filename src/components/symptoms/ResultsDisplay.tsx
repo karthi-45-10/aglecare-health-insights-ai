@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Check, X, Leaf } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Progress } from "@/components/ui/progress";
-import { supabase } from "@/integrations/supabase/client";
+import { typedSupabase } from "@/integrations/supabase/customClient";
 import { toast } from "sonner";
 
 const ResultsDisplay = () => {
@@ -43,7 +43,7 @@ const ResultsDisplay = () => {
         recommendation: result.recommendation
       };
       
-      const { error } = await supabase
+      const { error } = await typedSupabase
         .from('health_analyses')
         .insert(analysisData);
       
