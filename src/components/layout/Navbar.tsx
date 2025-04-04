@@ -1,11 +1,19 @@
 
 import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useHealth } from "@/context/HealthContext";
 import { Button } from "@/components/ui/button";
 import { Globe } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HealthAnalysisLanguage } from "@/types/health";
 
 const Navbar = () => {
   const { user, signOut } = useAuth();
+  const { language, setLanguage } = useHealth();
+
+  const handleLanguageChange = (value: string) => {
+    setLanguage(value as HealthAnalysisLanguage);
+  };
 
   return (
     <nav className="py-4 px-6 md:px-12 border-b flex justify-between items-center">
@@ -15,9 +23,17 @@ const Navbar = () => {
       </Link>
       
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <Globe size={18} />
-          <span className="text-sm">English</span>
+          <Select defaultValue={language} onValueChange={handleLanguageChange}>
+            <SelectTrigger className="w-[100px] h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="english">English</SelectItem>
+              <SelectItem value="tamil">தமிழ்</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         
         <Link to="/" className="text-sm font-medium hover:underline">

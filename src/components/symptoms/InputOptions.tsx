@@ -1,15 +1,16 @@
-
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare, Mic, Image, Loader2 } from "lucide-react";
+import { MessageSquare, Mic, Image, Loader2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHealth } from "@/context/HealthContext";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HealthAnalysisLanguage } from "@/types/health";
 
 const InputOptions = () => {
   const navigate = useNavigate();
-  const { analyzing, analyzeSymptomsText, analyzeSymptomsVoice, analyzeSymptomsImage } = useHealth();
+  const { analyzing, analyzeSymptomsText, analyzeSymptomsVoice, analyzeSymptomsImage, language, setLanguage } = useHealth();
   const [selectedOption, setSelectedOption] = useState<"text" | "voice" | "image" | null>(null);
   const [symptomText, setSymptomText] = useState("");
   
@@ -29,6 +30,10 @@ const InputOptions = () => {
     setSelectedOption(option);
   };
 
+  const handleLanguageChange = (value: string) => {
+    setLanguage(value as HealthAnalysisLanguage);
+  };
+
   const handleTextSubmit = async () => {
     if (!symptomText.trim()) {
       toast.error("Please describe your symptoms");
@@ -39,7 +44,6 @@ const InputOptions = () => {
     navigate("/results");
   };
 
-  // Handle voice recording
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -93,7 +97,6 @@ const InputOptions = () => {
     }
   };
 
-  // Clean up on component unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) {
@@ -142,7 +145,6 @@ const InputOptions = () => {
     navigate("/results");
   };
 
-  // Format seconds to MM:SS
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
     const secs = (seconds % 60).toString().padStart(2, '0');
@@ -151,7 +153,22 @@ const InputOptions = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h2 className="text-2xl font-bold text-center mb-8">How would you like to describe your symptoms?</h2>
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-2xl font-bold">How would you like to describe your symptoms?</h2>
+        
+        <div className="flex items-center">
+          <Globe size={20} className="mr-2 text-gray-500" />
+          <Select defaultValue={language} onValueChange={handleLanguageChange}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Language" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="english">English</SelectItem>
+              <SelectItem value="tamil">தமிழ்</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <button

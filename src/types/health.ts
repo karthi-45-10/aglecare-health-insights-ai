@@ -23,3 +23,6 @@ export interface HealthAnalysisRecord {
   recommendation: string | null;
   created_at: string;
 }
+
+// Language options for health analysis
+export type HealthAnalysisLanguage = "english" | "tamil";

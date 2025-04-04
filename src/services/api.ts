@@ -1,4 +1,3 @@
-
 // API keys
 const HUGGINGFACE_API_KEY = "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";
 const MISTRAL_API_KEY = "DjyJA9MFtGcViA7SvdgIp3Fg4iH7tPrW";
@@ -94,7 +93,6 @@ Provide thoughtful, helpful information while emphasizing the importance of prof
   }
 };
 
-// Function to parse the AI-generated health analysis text into structured data
 function parseHealthAnalysis(text: string, imageDescription: string | null): HealthAnalysisResult {
   // Extract the relevant parts after the instruction prompt
   const responseContent = text.split("[/INST]")[1] || text;
